@@ -1,26 +1,16 @@
 package com.gonzalo.cafeteriabackend.service;
 
-import com.gonzalo.cafeteriabackend.model.Order;
-import com.gonzalo.cafeteriabackend.model.OrderItem;
-import com.gonzalo.cafeteriabackend.model.Product;
-import com.gonzalo.cafeteriabackend.repository.OrderRepository;
-import com.gonzalo.cafeteriabackend.repository.ProductRepository;
+import com.gonzalo.cafeteriabackend.model.*;
+import com.gonzalo.cafeteriabackend.repository.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
-import java.util.List;
 
 @Service
 public class OrderService {
-
-    private final OrderRepository orderRepository;
-    private final ProductRepository productRepository;
-
-    public OrderService(OrderRepository orderRepository, ProductRepository productRepository) {
-        this.orderRepository = orderRepository;
-        this.productRepository = productRepository;
-    }
+    @Autowired private OrderRepository orderRepository;
+    @Autowired private ProductRepository productRepository;
 
     @Transactional
     public Order createOrder(Order order) {
@@ -31,28 +21,27 @@ public class OrderService {
                     .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
             if (product.getStock() < item.getQuantity()) {
-                throw new RuntimeException("No hay stock suficiente de: " + product.getName());
+                // Buscamos el nombre en español para el mensaje de error
+                String productName = product.getTranslations().stream()
+                        .filter(t -> t.getLanguageCode().equals("es"))
+                        .map(ProductTranslation::getName)
+                        .findFirst().orElse("Producto");
+
+                throw new RuntimeException("No hay stock suficiente de: " + productName);
             }
 
-            // Descontar stock
             product.setStock(product.getStock() - item.getQuantity());
             productRepository.save(product);
 
-            // Calcular subtotales
-            BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+            BigDecimal subtotal = product.getPrice().multiply(new BigDecimal(item.getQuantity()));
             item.setSubtotal(subtotal);
             item.setProduct(product);
             item.setOrder(order);
-
             total = total.add(subtotal);
         }
 
         order.setTotal(total);
         order.setStatus(Order.Status.PENDIENTE);
         return orderRepository.save(order);
-    }
-
-    public List<Order> getAllOrders() {
-        return orderRepository.findAll();
     }
 }

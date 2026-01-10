@@ -1,31 +1,49 @@
 package com.gonzalo.cafeteriabackend.model;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
+import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonManagedReference; // Importante
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "products")
-@Getter @Setter @NoArgsConstructor
+@Data
 public class Product {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
-
     private BigDecimal price;
-
     private Integer stock;
+    private Boolean active = true;
 
-    private boolean active;
+    @Transient
+    private String nameEs;
 
-    @Column(columnDefinition = "text")
-    private String description;
+    @Transient
+    private String nameEn;
 
-    private String imageUrl;
+    @Transient
+    private String descriptionEs;
+
+    @Transient
+    private String descriptionEn;
+
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "image_id")
+    private BinaryData image;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference // Evita el bucle infinito: esta es la parte principal
+    private List<ProductTranslation> translations = new ArrayList<>();
+
+    public void setImageData(byte[] data, String contentType) {
+        if (this.image == null) {
+            this.image = new BinaryData();
+        }
+        this.image.setData(data);
+        this.image.setContentType(contentType);
+    }
 }

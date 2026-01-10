@@ -1,40 +1,29 @@
 package com.gonzalo.cafeteriabackend.controller;
 
 import com.gonzalo.cafeteriabackend.model.Product;
-import com.gonzalo.cafeteriabackend.repository.ProductRepository;
+import com.gonzalo.cafeteriabackend.service.ProductService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:4200") // Soluciona el error de CORS
 public class ProductController {
 
-    private final ProductRepository productRepo;
-
-    public ProductController(ProductRepository productRepo) {
-        this.productRepo = productRepo;
-    }
-
-    @GetMapping
-    public List<Product> getAll() {
-        return productRepo.findAll();
-    }
+    @Autowired
+    private ProductService productService;
 
     @PostMapping
-    public Product create(@RequestBody Product product) {
-        return productRepo.save(product);
-    }
-
-    @PutMapping("/{id}")
-    public Product update(@PathVariable Long id, @RequestBody Product updated) {
-        Product product = productRepo.findById(id).orElseThrow();
-        product.setName(updated.getName());
-        product.setPrice(updated.getPrice());
-        product.setStock(updated.getStock());
-        product.setActive(updated.isActive());
-        product.setDescription(updated.getDescription());
-        product.setImageUrl(updated.getImageUrl());
-        return productRepo.save(product);
+    public ResponseEntity<Product> createProduct(
+            @RequestPart("product") Product product,
+            @RequestPart("image") MultipartFile image) {
+        try {
+            Product savedProduct = productService.saveProduct(product, image);
+            return ResponseEntity.ok(savedProduct);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
