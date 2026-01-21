@@ -5,16 +5,18 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 @Entity
-@Table(name = "binary_data")
+@Table(name = "category_translations")
 @Data
-public class BinaryData {
+public class CategoryTranslation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String contentType;
-
-    @Column(name = "data", columnDefinition = "bytea")
+    @ManyToOne
+    @JoinColumn(name = "category_id")
     @JsonIgnore
-    private byte[] data;
+    private Category category;
+
+    private String languageCode;
+    private String name;
 }

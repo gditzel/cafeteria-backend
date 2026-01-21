@@ -1,23 +1,23 @@
 package com.gonzalo.cafeteriabackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
-import com.fasterxml.jackson.annotation.JsonBackReference; // Importante
 
 @Entity
-@Table(name = "product_translations")
+@Table(name = "product_translations") // <--- Asegurate que diga exactamente el nombre de tu tabla original
 @Data
 public class ProductTranslation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "product_id")
-    @JsonBackReference // Evita el bucle infinito: no serializa el producto de vuelta
-    private Product product;
-
     private String languageCode;
     private String name;
     private String description;
+
+    @ManyToOne
+    @JoinColumn(name = "product_id")
+    @JsonIgnore
+    private Product product;
 }

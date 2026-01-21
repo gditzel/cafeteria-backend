@@ -6,22 +6,13 @@ import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "users")
+@Table(name = "tables")
 @Getter @Setter @NoArgsConstructor
-public class User {
-
+public class TableEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String username;
-
-    private String email;
-
-    @Column(name = "isactive")
-    private Boolean isActive = true;
-
-    @Enumerated(EnumType.STRING)
-    private Role role;
+    private Integer number;
+    private String status; // 'FREE' o 'OCCUPIED'
 }

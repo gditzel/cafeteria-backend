@@ -11,31 +11,25 @@ import java.util.List;
 
 @Entity
 @Table(name = "orders")
-@Getter @Setter @NoArgsConstructor // Esto elimina los warnings de "may use Lombok"
+@Getter @Setter @NoArgsConstructor
 public class Order {
-
-    public enum Status {
-        PENDIENTE,
-        ENVIADO,
-        COMPLETADO,
-        CANCELADO
-    }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    // Cargamos el usuario y la mesa de forma inmediata para evitar el error 500
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id")
     private User user;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "table_id")
+    private TableEntity table;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JsonManagedReference // Parte "dueña" de la relación serializable
     private List<OrderItem> items = new ArrayList<>();
 
     private BigDecimal total = BigDecimal.ZERO;
-
-    @Enumerated(EnumType.STRING)
-    private Status status = Status.PENDIENTE;
-
-    // Ya no necesitas escribir los Getters y Setters manualmente
+    private String status = "PENDIENTE";
 }
