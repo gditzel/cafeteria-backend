@@ -1,0 +1,26 @@
+---
+description: Hexagonal architecture rules (ports & adapters)
+alwaysApply: true
+---
+
+# Hexagonal Architecture
+
+- Keep dependency direction inward: adapters -> application -> domain.
+- Domain contains core models and business rules; no Spring/JPA/web annotations here.
+- Application layer defines use cases and ports (interfaces); it orchestrates domain.
+- Inbound adapters (HTTP, messaging) call application ports; outbound adapters implement ports.
+- Use DTOs in adapters and map to domain models in application services.
+
+## Package layout (example)
+src/main/java/.../
+- domain/model
+- domain/port
+- application/service
+- infrastructure/adapter/in (controllers)
+- infrastructure/adapter/out (repositories, gateways)
+- infrastructure/config
+
+## Mapping to existing code
+- Controllers belong to `infrastructure/adapter/in`.
+- Repositories belong to `infrastructure/adapter/out`.
+- Services in `application/service` call domain logic and ports.
