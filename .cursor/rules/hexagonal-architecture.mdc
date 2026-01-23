@@ -14,13 +14,160 @@ alwaysApply: true
 ## Package layout (example)
 src/main/java/.../
 - domain/model
-- domain/port
-- application/service
+- application/usecase/{feature}/ (use case implementations grouped by feature)
+- application/port/in/{feature}/ (use case interfaces - input ports grouped by feature)
+- application/port/out/ (output ports - shared across features)
+- application/service/ (orchestration logic coordinating multiple use cases)
 - infrastructure/adapter/in (controllers)
 - infrastructure/adapter/out (repositories, gateways)
 - infrastructure/config
 
+## Vertical Slicing (Feature-Based Organization)
+
+Use cases and ports must be organized by feature/domain concept using vertical slicing to avoid file proliferation in flat folders.
+
+### Structure
+
+Each feature gets its own packages:
+- `application/usecase/{feature}/` - Contains all use case implementations for that feature
+- `application/port/in/{feature}/` - Contains all use case interfaces (input ports) for that feature
+- `application/port/out/` - Output ports remain shared (repositories, gateways) as they may be used by multiple features
+- `application/service/` - Reserved for orchestration logic that coordinates multiple use cases together
+
+### Examples
+
+**Category Feature:**
+```
+application/port/in/category/GetAllCategories.java
+application/port/in/category/GetActiveCategories.java
+application/port/in/category/SaveCategory.java
+application/port/in/category/ReorderCategory.java
+application/port/in/category/DeleteCategory.java
+application/usecase/category/GetAllCategoriesUseCase.java
+application/usecase/category/GetActiveCategoriesUseCase.java
+application/usecase/category/SaveCategoryUseCase.java
+application/usecase/category/ReorderCategoryUseCase.java
+application/usecase/category/DeleteCategoryUseCase.java
+```
+
+**Product Feature:**
+```
+application/port/in/product/GetAllProducts.java
+application/port/in/product/GetProductById.java
+application/port/in/product/SaveProduct.java
+application/usecase/product/GetAllProductsUseCase.java
+application/usecase/product/GetProductByIdUseCase.java
+application/usecase/product/SaveProductUseCase.java
+...
+```
+
+**Orchestration Service Example:**
+```
+application/service/OrderOrchestrationService.java
+// Coordinates multiple use cases: CreateOrder, UpdateProductStock, NotifyKitchen, etc.
+```
+
+### Benefits
+
+- Clear separation between ports (interfaces) and use cases (implementations)
+- Related use cases and ports are grouped together by feature
+- Easier to navigate and understand feature boundaries
+- Reduces cognitive load when working on a specific feature
+- Scales better as the application grows
+- Aligns with Domain-Driven Design principles
+- Service layer reserved for cross-cutting orchestration concerns
+
 ## Mapping to existing code
 - Controllers belong to `infrastructure/adapter/in`.
 - Repositories belong to `infrastructure/adapter/out`.
-- Services in `application/service` call domain logic and ports.
+- Use case interfaces (input ports) belong to `application/port/in/{feature}/`.
+- Use case implementations belong to `application/usecase/{feature}/`.
+- Orchestration services belong to `application/service/`.
+
+## Use Case Conventions (Single-Action Principle)
+
+### Core Rule: One Use Case = One Business Action
+
+Every use case interface must represent exactly one business intent with exactly one public method.
+
+### Requirements
+
+1. **Exactly one public method**: Each use case interface exposes only one public method
+2. **Method name**: The public method must be named `execute`
+3. **Intent-oriented naming**: Use case interface names must express business intent (verb-based), not CRUD operations
+4. **Explicit input/output**: Use request/response models for clarity and extensibility
+5. **Implementation naming**: Implementations may append the suffix `UseCase`
+
+### Non-Compliant Example (DO NOT DO THIS)
+
+```java
+// ❌ WRONG: Multiple actions in one interface
+public interface EntityUseCase {
+    List<Entity> getAllEntities();
+    List<Entity> getActiveEntities();
+    Entity getEntityById(Long id);
+    Entity saveEntity(Entity entity, BinaryData data);
+    void toggleEntityStatus(Long id);
+    void deleteEntity(Long id);
+}
+```
+
+### Compliant Examples
+
+**Query Use Cases:**
+```java
+public interface GetAllEntities {
+    List<Entity> execute();
+}
+
+public interface GetActiveEntities {
+    List<Entity> execute();
+}
+
+public interface GetEntityById {
+    Entity execute(Long id);
+}
+```
+
+**Command Use Cases:**
+```java
+public record SaveEntityCommand(Entity entity, BinaryData data) {}
+
+public interface SaveEntity {
+    Entity execute(SaveEntityCommand command);
+}
+
+public interface ToggleEntityStatus {
+    void execute(Long id);
+}
+
+public interface DeleteEntity {
+    void execute(Long id);
+}
+```
+
+**Implementation:**
+```java
+public class SaveEntityUseCase implements SaveEntity {
+    @Override
+    public Entity execute(SaveEntityCommand command) {
+        // orchestration logic
+    }
+}
+```
+
+### Validation Checklist
+
+A use case is non-compliant if:
+- ❌ The interface exposes more than one public method
+- ❌ The public method is not named `execute`
+- ❌ The name is CRUD-oriented instead of intent-oriented (e.g., `EntityUseCase` vs `SaveEntity`)
+- ❌ Multiple business actions are grouped in one abstraction
+
+### Benefits
+
+- Clear, unambiguous responsibilities
+- Intent-oriented APIs instead of CRUD-oriented ones
+- Controllers become simple dispatchers without business logic
+- Improved testability and maintainability
+- Better alignment with Clean Architecture principles
