@@ -1,48 +1,52 @@
 package com.gonzalo.cafeteriabackend.controller;
 
 import com.gonzalo.cafeteriabackend.model.Order;
-import com.gonzalo.cafeteriabackend.repository.OrderRepository;
 import com.gonzalo.cafeteriabackend.service.OrderService;
-import org.springframework.http.HttpStatus;
+import com.gonzalo.cafeteriabackend.repository.OrderRepository;
+import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:4200")
 public class OrderController {
-
     private final OrderService orderService;
-    private final OrderRepository orderRepo;
+    private final OrderRepository orderRepository;
 
-    public OrderController(OrderService orderService, OrderRepository orderRepo) {
+    public OrderController(OrderService orderService, OrderRepository orderRepository) {
         this.orderService = orderService;
-        this.orderRepo = orderRepo;
+        this.orderRepository = orderRepository;
+    }
+
+    @GetMapping("/active/{tableId}")
+    @Transactional(readOnly = true)
+    public ResponseEntity<Order> getActiveOrder(@PathVariable Long tableId) {
+        Order order = orderService.getConsumoAcumulado(tableId);
+        return (order != null) ? ResponseEntity.ok(order) : ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/pending")
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<Order>> getPendingOrders() {
+        return ResponseEntity.ok(orderRepository.findPendingOrdersWithItems());
     }
 
     @PostMapping
-    public Order create(@RequestBody Order orderRequest) {
-        return orderService.createOrder(orderRequest);
+    public ResponseEntity<Order> createOrder(@RequestBody Order order) {
+        return ResponseEntity.ok(orderService.createOrder(order));
     }
 
-    @GetMapping
-    public List<Order> getAll() {
-        return orderRepo.findAll();
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<Void> updateStatus(@PathVariable Long id, @RequestParam String status) {
+        orderService.updateStatus(id, status);
+        return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/active")
-    public List<Order> getActiveOrders() {
-        return orderRepo.findByStatus(Order.Status.PENDIENTE);
-    }
-
-    @PutMapping("/{id}/status")
-    public Order updateStatus(@PathVariable Long id, @RequestParam Order.Status status) {
-        Order order = orderRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Orden no encontrada"));
-
-        order.setStatus(status);
-        return orderRepo.save(order);
+    @PostMapping("/close/{tableId}")
+    public ResponseEntity<Void> closeOrder(@PathVariable Long tableId) {
+        orderService.closeOrder(tableId);
+        return ResponseEntity.ok().build();
     }
 }

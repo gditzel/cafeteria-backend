@@ -2,6 +2,7 @@ package com.gonzalo.cafeteriabackend.model;
 
 public enum Role {
     ADMIN,
-    MOZO,
-    COCINA
+    WAITER,  // Este sería para los Mozos
+    CASHIER,
+    COOK
 }

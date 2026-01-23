@@ -1,10 +1,9 @@
 package com.gonzalo.cafeteriabackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
-import com.fasterxml.jackson.annotation.JsonManagedReference; // Importante
-import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -15,35 +14,26 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private BigDecimal price;
+    @Column(name = "isactive", nullable = false)
+    private Boolean isActive = true;
+
+    @Column(name = "sort_order")
+    private Integer sortOrder = 0;
+
+    private Double price;
     private Integer stock;
-    private Boolean active = true;
 
-    @Transient
-    private String nameEs;
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "binaryid")
+    @JsonIgnore
+    private BinaryData binaryData;
 
-    @Transient
-    private String nameEn;
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties("product")
+    private List<ProductTranslation> translations;
 
-    @Transient
-    private String descriptionEs;
-
-    @Transient
-    private String descriptionEn;
-
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "image_id")
-    private BinaryData image;
-
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference // Evita el bucle infinito: esta es la parte principal
-    private List<ProductTranslation> translations = new ArrayList<>();
-
-    public void setImageData(byte[] data, String contentType) {
-        if (this.image == null) {
-            this.image = new BinaryData();
-        }
-        this.image.setData(data);
-        this.image.setContentType(contentType);
-    }
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "category_id")
+    @JsonIgnoreProperties("products")
+    private Category category;
 }
