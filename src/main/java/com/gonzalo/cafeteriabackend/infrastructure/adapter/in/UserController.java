@@ -1,6 +1,10 @@
 package com.gonzalo.cafeteriabackend.infrastructure.adapter.in;
 
-import com.gonzalo.cafeteriabackend.application.port.in.UserUseCase;
+import com.gonzalo.cafeteriabackend.application.port.in.user.DeleteUser;
+import com.gonzalo.cafeteriabackend.application.port.in.user.FindUserByUsername;
+import com.gonzalo.cafeteriabackend.application.port.in.user.GetUserById;
+import com.gonzalo.cafeteriabackend.application.port.in.user.GetWaiters;
+import com.gonzalo.cafeteriabackend.application.port.in.user.SaveUser;
 import com.gonzalo.cafeteriabackend.infrastructure.adapter.in.dto.UserDto;
 import com.gonzalo.cafeteriabackend.infrastructure.adapter.in.dto.UserLoginRequest;
 import com.gonzalo.cafeteriabackend.infrastructure.adapter.in.mapper.UserMapper;
@@ -20,15 +24,30 @@ import java.util.List;
 @RequestMapping("/api/users")
 @CrossOrigin(origins = "http://localhost:4200")
 public class UserController {
-    private final UserUseCase userUseCase;
+    private final FindUserByUsername findUserByUsername;
+    private final GetWaiters getWaiters;
+    private final GetUserById getUserById;
+    private final SaveUser saveUser;
+    private final DeleteUser deleteUser;
 
-    public UserController(UserUseCase userUseCase) {
-        this.userUseCase = userUseCase;
+    public UserController(
+            FindUserByUsername findUserByUsername,
+            GetWaiters getWaiters,
+            GetUserById getUserById,
+            SaveUser saveUser,
+            DeleteUser deleteUser) {
+        this.findUserByUsername = findUserByUsername;
+        this.getWaiters = getWaiters;
+        this.getUserById = getUserById;
+        this.saveUser = saveUser;
+        this.deleteUser = deleteUser;
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody UserLoginRequest loginRequest) {
-        return userUseCase.findByUsername(loginRequest.getUsername())
+        var response = findUserByUsername
+                .execute(new FindUserByUsername.FindUserByUsernameRequest(loginRequest.getUsername()));
+        return response.user()
                 .map(user -> {
                     if (user.getIsActive()) {
                         return ResponseEntity.ok(UserMapper.toDto(user));
@@ -40,14 +59,15 @@ public class UserController {
 
     @GetMapping("/waiters")
     public List<UserDto> getWaiters() {
-        return userUseCase.getWaiters().stream()
+        var response = getWaiters.execute(new GetWaiters.GetWaitersRequest());
+        return response.users().stream()
                 .map(UserMapper::toDto)
                 .toList();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
-        var user = userUseCase.getUserById(id);
+        var user = getUserById.execute(new GetUserById.GetUserByIdRequest(id)).user();
         return user != null
                 ? ResponseEntity.ok(UserMapper.toDto(user))
                 : ResponseEntity.notFound().build();
@@ -55,13 +75,14 @@ public class UserController {
 
     @PostMapping
     public ResponseEntity<UserDto> saveUser(@RequestBody UserDto user) {
+        var response = saveUser.execute(new SaveUser.SaveUserRequest(UserMapper.toEntity(user)));
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(UserMapper.toDto(userUseCase.saveUser(UserMapper.toEntity(user))));
+                .body(UserMapper.toDto(response.user()));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        userUseCase.deleteUser(id);
+        deleteUser.execute(new DeleteUser.DeleteUserRequest(id));
         return ResponseEntity.noContent().build();
     }
 }

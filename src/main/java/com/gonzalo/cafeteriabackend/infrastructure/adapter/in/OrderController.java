@@ -1,6 +1,10 @@
 package com.gonzalo.cafeteriabackend.infrastructure.adapter.in;
 
-import com.gonzalo.cafeteriabackend.application.port.in.OrderUseCase;
+import com.gonzalo.cafeteriabackend.application.port.in.order.CloseOrder;
+import com.gonzalo.cafeteriabackend.application.port.in.order.CreateOrder;
+import com.gonzalo.cafeteriabackend.application.port.in.order.GetAccumulatedConsumption;
+import com.gonzalo.cafeteriabackend.application.port.in.order.GetPendingOrders;
+import com.gonzalo.cafeteriabackend.application.port.in.order.UpdateOrderStatus;
 import com.gonzalo.cafeteriabackend.infrastructure.adapter.in.dto.OrderDto;
 import com.gonzalo.cafeteriabackend.infrastructure.adapter.in.mapper.OrderMapper;
 import org.springframework.http.ResponseEntity;
@@ -20,16 +24,31 @@ import java.util.List;
 @RequestMapping("/api/orders")
 @CrossOrigin(origins = "http://localhost:4200")
 public class OrderController {
-    private final OrderUseCase orderUseCase;
+    private final GetAccumulatedConsumption getAccumulatedConsumption;
+    private final GetPendingOrders getPendingOrders;
+    private final CreateOrder createOrder;
+    private final UpdateOrderStatus updateOrderStatus;
+    private final CloseOrder closeOrder;
 
-    public OrderController(OrderUseCase orderUseCase) {
-        this.orderUseCase = orderUseCase;
+    public OrderController(
+            GetAccumulatedConsumption getAccumulatedConsumption,
+            GetPendingOrders getPendingOrders,
+            CreateOrder createOrder,
+            UpdateOrderStatus updateOrderStatus,
+            CloseOrder closeOrder) {
+        this.getAccumulatedConsumption = getAccumulatedConsumption;
+        this.getPendingOrders = getPendingOrders;
+        this.createOrder = createOrder;
+        this.updateOrderStatus = updateOrderStatus;
+        this.closeOrder = closeOrder;
     }
 
     @GetMapping("/active/{tableId}")
     @Transactional(readOnly = true)
     public ResponseEntity<OrderDto> getActiveOrder(@PathVariable Long tableId) {
-        var order = orderUseCase.getConsumoAcumulado(tableId);
+        var response = getAccumulatedConsumption
+                .execute(new GetAccumulatedConsumption.GetAccumulatedConsumptionRequest(tableId));
+        var order = response.order();
         return (order != null)
                 ? ResponseEntity.ok(OrderMapper.toDto(order))
                 : ResponseEntity.noContent().build();
@@ -38,25 +57,27 @@ public class OrderController {
     @GetMapping("/pending")
     @Transactional(readOnly = true)
     public ResponseEntity<List<OrderDto>> getPendingOrders() {
-        return ResponseEntity.ok(orderUseCase.getPendingOrders().stream()
+        var response = getPendingOrders.execute(new GetPendingOrders.GetPendingOrdersRequest());
+        return ResponseEntity.ok(response.orders().stream()
                 .map(OrderMapper::toDto)
                 .toList());
     }
 
     @PostMapping
     public ResponseEntity<OrderDto> createOrder(@RequestBody OrderDto order) {
-        return ResponseEntity.ok(OrderMapper.toDto(orderUseCase.createOrder(OrderMapper.toEntity(order))));
+        var response = createOrder.execute(new CreateOrder.CreateOrderRequest(OrderMapper.toEntity(order)));
+        return ResponseEntity.ok(OrderMapper.toDto(response.order()));
     }
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> updateStatus(@PathVariable Long id, @RequestParam String status) {
-        orderUseCase.updateStatus(id, status);
+        updateOrderStatus.execute(new UpdateOrderStatus.UpdateOrderStatusRequest(id, status));
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/close/{tableId}")
     public ResponseEntity<Void> closeOrder(@PathVariable Long tableId) {
-        orderUseCase.closeOrder(tableId);
+        closeOrder.execute(new CloseOrder.CloseOrderRequest(tableId));
         return ResponseEntity.ok().build();
     }
 }

@@ -1,6 +1,10 @@
-package com.gonzalo.cafeteriabackend.application.service;
+package com.gonzalo.cafeteriabackend.application.usecase.order;
 
-import com.gonzalo.cafeteriabackend.application.port.in.OrderUseCase;
+import com.gonzalo.cafeteriabackend.application.port.in.order.CloseOrder;
+import com.gonzalo.cafeteriabackend.application.port.in.order.CreateOrder;
+import com.gonzalo.cafeteriabackend.application.port.in.order.GetAccumulatedConsumption;
+import com.gonzalo.cafeteriabackend.application.port.in.order.GetPendingOrders;
+import com.gonzalo.cafeteriabackend.application.port.in.order.UpdateOrderStatus;
 import com.gonzalo.cafeteriabackend.application.port.out.OrderNotificationPort;
 import com.gonzalo.cafeteriabackend.application.port.out.OrderRepositoryPort;
 import com.gonzalo.cafeteriabackend.application.port.out.ProductRepositoryPort;
@@ -18,13 +22,18 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class OrderService implements OrderUseCase {
+public class OrderUseCases implements
+        GetAccumulatedConsumption,
+        GetPendingOrders,
+        CreateOrder,
+        UpdateOrderStatus,
+        CloseOrder {
     private final OrderRepositoryPort orderRepository;
     private final TableRepositoryPort tableRepository;
     private final ProductRepositoryPort productRepository;
     private final OrderNotificationPort orderNotification;
 
-    public OrderService(
+    public OrderUseCases(
             OrderRepositoryPort orderRepository,
             TableRepositoryPort tableRepository,
             ProductRepositoryPort productRepository,
@@ -37,10 +46,10 @@ public class OrderService implements OrderUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public Order getConsumoAcumulado(Long tableId) {
-        List<Order> activeOrders = orderRepository.findAllActiveByTable(tableId);
+    public GetAccumulatedConsumptionResponse execute(GetAccumulatedConsumptionRequest request) {
+        List<Order> activeOrders = orderRepository.findAllActiveByTable(request.tableId());
         if (activeOrders.isEmpty()) {
-            return null;
+            return new GetAccumulatedConsumptionResponse(null);
         }
 
         Order totalMesa = new Order();
@@ -71,18 +80,19 @@ public class OrderService implements OrderUseCase {
 
         totalMesa.setItems(new ArrayList<>(groupedItems.values()));
         totalMesa.setTotal(acumuladoMesa);
-        return totalMesa;
+        return new GetAccumulatedConsumptionResponse(totalMesa);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Order> getPendingOrders() {
-        return orderRepository.findPendingOrdersWithItems();
+    public GetPendingOrdersResponse execute(GetPendingOrdersRequest request) {
+        return new GetPendingOrdersResponse(orderRepository.findPendingOrdersWithItems());
     }
 
     @Override
     @Transactional
-    public Order createOrder(Order order) {
+    public CreateOrderResponse execute(CreateOrderRequest request) {
+        Order order = request.order();
         Table table = tableRepository.findById(order.getTable().getId()).orElseThrow();
         table.setStatus("OCCUPIED");
         tableRepository.save(table);
@@ -112,29 +122,31 @@ public class OrderService implements OrderUseCase {
         order.setStatus("PENDIENTE");
         Order savedOrder = orderRepository.save(order);
         orderNotification.notifyOrdersRefresh();
-        return savedOrder;
+        return new CreateOrderResponse(savedOrder);
     }
 
     @Override
     @Transactional
-    public void closeOrder(Long tableId) {
-        List<Order> orders = orderRepository.findAllActiveByTable(tableId);
+    public CloseOrderResponse execute(CloseOrderRequest request) {
+        List<Order> orders = orderRepository.findAllActiveByTable(request.tableId());
         for (Order o : orders) {
             o.setStatus("CLOSED");
             orderRepository.save(o);
         }
-        Table table = tableRepository.findById(tableId).orElseThrow();
+        Table table = tableRepository.findById(request.tableId()).orElseThrow();
         table.setStatus("FREE");
         tableRepository.saveAndFlush(table);
         orderNotification.notifyOrdersRefresh();
+        return new CloseOrderResponse(true);
     }
 
     @Override
     @Transactional
-    public void updateStatus(Long orderId, String status) {
-        Order order = orderRepository.findById(orderId).orElseThrow();
-        order.setStatus(status);
+    public UpdateOrderStatusResponse execute(UpdateOrderStatusRequest request) {
+        Order order = orderRepository.findById(request.orderId()).orElseThrow();
+        order.setStatus(request.status());
         orderRepository.saveAndFlush(order);
         orderNotification.notifyOrdersRefresh();
+        return new UpdateOrderStatusResponse(true);
     }
 }

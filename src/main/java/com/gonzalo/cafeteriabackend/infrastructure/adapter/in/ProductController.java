@@ -1,7 +1,14 @@
 package com.gonzalo.cafeteriabackend.infrastructure.adapter.in;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gonzalo.cafeteriabackend.application.port.in.ProductUseCase;
+import com.gonzalo.cafeteriabackend.application.port.in.product.DeleteProduct;
+import com.gonzalo.cafeteriabackend.application.port.in.product.GetActiveProducts;
+import com.gonzalo.cafeteriabackend.application.port.in.product.GetAllProducts;
+import com.gonzalo.cafeteriabackend.application.port.in.product.GetProductById;
+import com.gonzalo.cafeteriabackend.application.port.in.product.GetProductImageData;
+import com.gonzalo.cafeteriabackend.application.port.in.product.ReorderProduct;
+import com.gonzalo.cafeteriabackend.application.port.in.product.SaveProduct;
+import com.gonzalo.cafeteriabackend.application.port.in.product.ToggleProductStatus;
 import com.gonzalo.cafeteriabackend.domain.model.BinaryData;
 import com.gonzalo.cafeteriabackend.domain.model.Product;
 import com.gonzalo.cafeteriabackend.infrastructure.adapter.in.dto.ProductDto;
@@ -26,35 +33,59 @@ import java.util.List;
 @RequestMapping("/api/products")
 @CrossOrigin(origins = "http://localhost:4200")
 public class ProductController {
-    private final ProductUseCase productUseCase;
+    private final GetAllProducts getAllProducts;
+    private final ReorderProduct reorderProduct;
+    private final GetActiveProducts getActiveProducts;
+    private final GetProductById getProductById;
+    private final GetProductImageData getProductImageData;
+    private final SaveProduct saveProduct;
+    private final DeleteProduct deleteProduct;
+    private final ToggleProductStatus toggleProductStatus;
 
-    public ProductController(ProductUseCase productUseCase) {
-        this.productUseCase = productUseCase;
+    public ProductController(
+            GetAllProducts getAllProducts,
+            ReorderProduct reorderProduct,
+            GetActiveProducts getActiveProducts,
+            GetProductById getProductById,
+            GetProductImageData getProductImageData,
+            SaveProduct saveProduct,
+            DeleteProduct deleteProduct,
+            ToggleProductStatus toggleProductStatus) {
+        this.getAllProducts = getAllProducts;
+        this.reorderProduct = reorderProduct;
+        this.getActiveProducts = getActiveProducts;
+        this.getProductById = getProductById;
+        this.getProductImageData = getProductImageData;
+        this.saveProduct = saveProduct;
+        this.deleteProduct = deleteProduct;
+        this.toggleProductStatus = toggleProductStatus;
     }
 
     @GetMapping
     public List<ProductDto> getAllProducts() {
-        return productUseCase.getAllProducts().stream()
+        var response = getAllProducts.execute(new GetAllProducts.GetAllProductsRequest());
+        return response.products().stream()
                 .map(ProductMapper::toDto)
                 .toList();
     }
 
     @PostMapping("/{id}/reorder")
     public ResponseEntity<Void> reorder(@PathVariable Long id, @RequestParam String direction) {
-        productUseCase.reorder(id, direction);
+        reorderProduct.execute(new ReorderProduct.ReorderProductRequest(id, direction));
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/active")
     public List<ProductDto> getActiveProducts() {
-        return productUseCase.getActiveProducts().stream()
+        var response = getActiveProducts.execute(new GetActiveProducts.GetActiveProductsRequest());
+        return response.products().stream()
                 .map(ProductMapper::toDto)
                 .toList();
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ProductDto> getProductById(@PathVariable Long id) {
-        Product product = productUseCase.getProductById(id);
+        Product product = getProductById.execute(new GetProductById.GetProductByIdRequest(id)).product();
         return product != null
                 ? ResponseEntity.ok(ProductMapper.toDto(product))
                 : ResponseEntity.notFound().build();
@@ -62,7 +93,9 @@ public class ProductController {
 
     @GetMapping("/{id}/image")
     public ResponseEntity<byte[]> getProductImage(@PathVariable Long id) {
-        BinaryData image = productUseCase.getBinaryDataByProductId(id);
+        BinaryData image = getProductImageData
+                .execute(new GetProductImageData.GetProductImageDataRequest(id))
+                .imageData();
         if (image != null && image.getData() != null && image.getData().length > 0) {
             String contentType = (image.getContentType() != null) ? image.getContentType() : "image/png";
             return ResponseEntity.ok()
@@ -89,7 +122,8 @@ public class ProductController {
                 imageData = bin;
             }
 
-            return ResponseEntity.ok(ProductMapper.toDto(productUseCase.saveProduct(product, imageData)));
+            var response = saveProduct.execute(new SaveProduct.SaveProductRequest(product, imageData));
+            return ResponseEntity.ok(ProductMapper.toDto(response.product()));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
@@ -98,13 +132,13 @@ public class ProductController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-        productUseCase.deleteProduct(id);
+        deleteProduct.execute(new DeleteProduct.DeleteProductRequest(id));
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/toggle")
     public ResponseEntity<Void> toggleStatus(@PathVariable Long id) {
-        productUseCase.toggleProductStatus(id);
+        toggleProductStatus.execute(new ToggleProductStatus.ToggleProductStatusRequest(id));
         return ResponseEntity.ok().build();
     }
 }

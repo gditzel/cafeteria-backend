@@ -1,6 +1,6 @@
 package com.gonzalo.cafeteriabackend.infrastructure.adapter.in;
 
-import com.gonzalo.cafeteriabackend.application.port.in.ProductUseCase;
+import com.gonzalo.cafeteriabackend.application.port.in.product.GetProductsForMenu;
 import com.gonzalo.cafeteriabackend.infrastructure.adapter.in.dto.ProductDto;
 import com.gonzalo.cafeteriabackend.infrastructure.adapter.in.mapper.ProductMapper;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -13,15 +13,16 @@ import java.util.List;
 @RequestMapping("/api/public/menu")
 @CrossOrigin(origins = "http://localhost:4200")
 public class MenuController {
-    private final ProductUseCase productUseCase;
+    private final GetProductsForMenu getProductsForMenu;
 
-    public MenuController(ProductUseCase productUseCase) {
-        this.productUseCase = productUseCase;
+    public MenuController(GetProductsForMenu getProductsForMenu) {
+        this.getProductsForMenu = getProductsForMenu;
     }
 
     @GetMapping
     public List<ProductDto> getMenu() {
-        return productUseCase.getProductsForMenu().stream()
+        var response = getProductsForMenu.execute(new GetProductsForMenu.GetProductsForMenuRequest());
+        return response.products().stream()
                 .map(ProductMapper::toDto)
                 .toList();
     }
