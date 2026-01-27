@@ -1,0 +1,10 @@
+services:
+  cafeteria-db:
+    image: postgres:15
+    container_name: cafeteria-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: cafeteria_db
+      POSTGRES_USER: gonzalo
+      POSTGRES_PASSWORD: 123456

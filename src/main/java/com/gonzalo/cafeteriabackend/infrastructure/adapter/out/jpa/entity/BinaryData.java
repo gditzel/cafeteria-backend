@@ -1,9 +1,8 @@
 package com.gonzalo.cafeteriabackend.infrastructure.adapter.out.jpa.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
-import org.hibernate.annotations.JdbcTypeCode;
-import java.sql.Types;
 
 @Entity
 @Table(name = "binary_data")
@@ -15,8 +14,7 @@ public class BinaryData {
 
     private String contentType;
 
-    @Lob
-    @Column(name = "data")
-    @JdbcTypeCode(java.sql.Types.VARBINARY) // <-- Esto le dice a Postgres que use 'bytea'
+    @Column(name = "data", columnDefinition = "bytea")
+    @JsonIgnore
     private byte[] data;
 }

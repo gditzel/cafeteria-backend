@@ -7,16 +7,20 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "users")
-@Getter @Setter @NoArgsConstructor // Esto reemplaza todos los getters, setters y constructor vacío
+@Getter @Setter @NoArgsConstructor
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true, nullable = false)
     private String username;
 
     private String email;
+
+    @Column(name = "isactive")
+    private Boolean isActive = true;
 
     @Enumerated(EnumType.STRING)
     private Role role;
